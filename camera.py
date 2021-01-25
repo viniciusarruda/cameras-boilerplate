@@ -1,8 +1,9 @@
 import cv2
 import queue  # because multiprocessing borrowed queue's Queue
+from multiprocessing import Process
 
 
-class Camera:
+class Camera(Process):
 
     def __init__(self, data: dict, callbacks: dict, queue, already_exists: bool, terminate, crop_roi, width, height, x, y):
         super().__init__()
@@ -26,10 +27,6 @@ class Camera:
         self.height = height
         self.x = x
         self.y = y
-
-        self.connect()
-
-        self.capture()
 
     def _check_parameters(self, data: dict, callbacks: dict):
 
@@ -79,7 +76,9 @@ class Camera:
 
         return frame
 
-    def capture(self):
+    def run(self):
+
+        self.connect()  # must be inside run not __init__
 
         assert self.cap.isOpened()
 
@@ -90,9 +89,11 @@ class Camera:
             self.cap.grab()
 
             if not self.queue.full():
+
                 _, frame = self.cap.retrieve()
                 frame = self.preprocessing(frame)
 
+                # While retrieving and preprocessing, the queue may be full, so this try/except
                 try:
                     self.queue.put_nowait((self.frame_id, self.id, frame))
                 except queue.Full:

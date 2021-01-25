@@ -1,1 +1,5 @@
-# person-detection-stuff
+# cameras-boilerplate
+
+To run:
+
+python engine_manager.py
