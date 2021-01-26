@@ -23,10 +23,8 @@ class EngineManager:
         self.cm.start()
 
     # receive through gRPC
-    def add_camera(self):
+    def add_camera(self, url):
 
-        print('AddCamera on Manager called')
-        url = 'rtsp://Admin:1234@10.5.1.10:554/rtsp/profile1'
         camera_id = self.camera_id  # get from db after inserting it
         data = {'id': camera_id, 'url': url}
 
@@ -54,7 +52,8 @@ class EngineManager:
 if __name__ == "__main__":
     em = EngineManager()
 
-    em.add_camera()
+    url = 'rtsp://your_url_here'
+    em.add_camera(url)
 
     em.receive_results()
 
