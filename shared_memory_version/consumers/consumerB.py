@@ -12,8 +12,8 @@ class ConsumerExampleB(Process):
 
     def process(self, frame_id: int, camera_id: int, frame):
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        cv2.imwrite(f'frame{self.param}.jpg', frame)
+        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # cv2.imwrite(f'frame{self.param}.jpg', frame)
         return f'example{self.param}'
 
     def run(self):

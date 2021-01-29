@@ -1,14 +1,22 @@
 import cv2
-import queue  # because multiprocessing borrowed queue's Queue
 from multiprocessing import Process
+import numpy as np
+from multiprocessing.shared_memory import SharedMemory
 
 
 class Camera(Process):
 
-    def __init__(self, data: dict, callbacks: dict, queue, already_exists: bool, terminate, crop_roi, width, height, x, y):
+    def __init__(self, data: dict, name, condition, frame_id_name, already_exists: bool, terminate, crop_roi, width, height, x, y):
         super().__init__()
 
-        self.queue = queue
+        self.shm = SharedMemory(name)
+        self.frame = np.frombuffer(self.shm.buf, dtype=np.uint8).reshape((1080, 1920, 3))
+
+        self.shm_frame_id = SharedMemory(frame_id_name)
+        self.frame_id_shm = np.frombuffer(self.shm_frame_id.buf, dtype=np.uint64)
+
+        self.condition = condition
+
         self.already_exists = already_exists
 
         self.id = data['id'] if 'id' in data else None
@@ -27,13 +35,6 @@ class Camera(Process):
         self.height = height
         self.x = x
         self.y = y
-
-    def _check_parameters(self, data: dict, callbacks: dict):
-
-        assert 'url' in data
-
-        assert 'after_connect' in callbacks
-        assert 'pre_processing' in callbacks
 
     def connect(self):
 
@@ -60,6 +61,9 @@ class Camera(Process):
 
     def preprocessing(self, frame):
 
+        # Do your preprocessing here!
+        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
         # crop to roi
         if self.crop_roi.value:
 
@@ -78,26 +82,22 @@ class Camera(Process):
 
     def run(self):
 
-        self.connect()  # must be inside run not __init__
+        self.connect()
 
         assert self.cap.isOpened()
 
         self.frame_id = 0
 
         while not self.terminate.value:
-
             self.cap.grab()
 
-            if not self.queue.full():
-
+            if self.condition.acquire(blocking=False):
                 _, frame = self.cap.retrieve()
                 frame = self.preprocessing(frame)
-
-                # While retrieving and preprocessing, the queue may be full, so this try/except
-                try:
-                    self.queue.put_nowait((self.frame_id, self.id, frame))
-                except queue.Full:
-                    print('Skiping.. queue is full!')
+                np.copyto(self.frame, frame)
+                self.frame_id_shm[0] = self.frame_id
+                self.condition.notify()
+                self.condition.release()
 
             self.frame_id += 1
 
